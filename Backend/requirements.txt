@@ -40,3 +40,4 @@ shap==0.52.0
 xgboost
 lightgbm
 catboost
+httpx2
