@@ -1,0 +1,5 @@
+Operation / Task,Iterations,Min (ms),Max (ms),Mean (ms),Median (ms),P95 (ms)
+Clinical Model Prediction,20,2.79,7.67,4.9,5.0,7.16
+TreeSHAP Explanation,20,14.43,29.7,18.01,16.77,24.25
+PDF Report Generation,20,45.39,72.79,56.77,56.07,72.65
+Excel Export Generation,20,13.37,30.85,17.73,15.85,27.52

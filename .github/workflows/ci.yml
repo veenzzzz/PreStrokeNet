@@ -1,0 +1,64 @@
+name: PreStrokeNet CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-tests:
+    name: Backend Unit Tests & Compilation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install system dependencies for ODBC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc unixodbc-dev
+
+      - name: Install Backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r Backend/requirements.txt
+
+      - name: Run Backend unit tests
+        run: |
+          cd Backend
+          python -m unittest discover -s tests -v
+
+      - name: Compile Backend Python source
+        run: |
+          python -m compileall Backend/app
+
+  frontend-build:
+    name: Frontend TypeCheck & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install Frontend dependencies
+        run: |
+          npm --prefix Frontend ci || npm --prefix Frontend install
+
+      - name: Build Frontend production bundle
+        run: |
+          npm --prefix Frontend run build

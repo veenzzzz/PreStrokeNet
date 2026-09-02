@@ -1,0 +1,6 @@
+Fusion Scheme,Clinical Weight,Keystroke Weight,Threshold,Accuracy,Precision,Recall,F1-Score,Specificity,ROC-AUC,TP,FP,FN,TN
+Clinical-only Baseline,1.0,0.0,0.15,0.7847,0.1573,0.78,0.2617,0.785,0.7979,39,209,11,763
+Fixed 90/10 Fusion,0.9,0.1,0.15,0.774,0.1506,0.78,0.2524,0.7737,0.8032,39,220,11,752
+Fixed 80/20 Fusion,0.8,0.2,0.15,0.7456,0.1379,0.8,0.2353,0.7428,0.8043,40,250,10,722
+Fixed 70/30 Fusion (Production),0.7,0.3,0.15,0.683,0.113,0.8,0.198,0.677,0.7994,40,314,10,658
+Fixed 60/40 Fusion,0.6,0.4,0.15,0.5323,0.0837,0.86,0.1525,0.5154,0.7911,43,471,7,501

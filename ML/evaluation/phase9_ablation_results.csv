@@ -1,0 +1,4 @@
+System Component,Scope,Predictive Accuracy,ROC-AUC,Primary Role
+Clinical Subsystem Only,Clinical Demographics & Health Profile,0.7847,0.7979,Supervised Clinical Stroke Prediction
+Keystroke Subsystem Only,Biometric Typing Dynamics Metadata,0.9348,0.952,User Biometric Identification & Personal Baseline Profiling
+Hybrid Decision System (70/30),Combined Decision-Support Architecture,0.683,0.7994,Integrated Clinical-Biometric Decision Support

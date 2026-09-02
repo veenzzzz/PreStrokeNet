@@ -1,0 +1,4 @@
+Model Variant,Brier Score,ROC-AUC,Recommendation
+Uncalibrated Random Forest (Production),0.0501,0.7979,Production Baseline
+Platt Scaling (Sigmoid),0.0479,0.7979,Candidate Variant
+Isotonic Regression,0.0479,0.5425,Candidate Variant

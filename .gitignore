@@ -1,0 +1,42 @@
+# Environment & Secrets
+.env
+.env.production
+.env.local
+*.env
+
+# Python / Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / Frontend Build
+node_modules/
+dist/
+dist-ssr/
+build/
+*.local
+.npm/
+
+# Model & Training Logs
+catboost_info/
+.ipynb_checkpoints/
+
+# IDEs & System
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.log
