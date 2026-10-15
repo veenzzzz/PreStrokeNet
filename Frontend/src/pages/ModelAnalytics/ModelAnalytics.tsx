@@ -10,6 +10,7 @@ import { getModelAnalytics } from "../../services/analytics";
 import type { ModelAnalyticsResponse, ThresholdPerformanceItem } from "../../types";
 import { MultimodalFusionPanel } from "./components/MultimodalFusionPanel";
 import { ResearchValidationPanel } from "./components/ResearchValidationPanel";
+import { ThresholdFairnessSimulator } from "./components/ThresholdFairnessSimulator";
 
 export function ModelAnalytics() {
   const navigate = useNavigate();
@@ -471,6 +472,7 @@ export function ModelAnalytics() {
       </div>
 
       <div className="mt-7 space-y-7">
+        <ThresholdFairnessSimulator />
         <ResearchValidationPanel />
         <MultimodalFusionPanel />
       </div>

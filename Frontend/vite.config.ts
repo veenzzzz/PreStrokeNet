@@ -25,8 +25,10 @@ export default defineConfig({
       "/reports": "http://localhost:8000",
       "/search": "http://localhost:8000",
       "/audit-log": "http://localhost:8000",
+      "/audit-logs": "http://localhost:8000",
       "/saved-patients": "http://localhost:8000",
       "/profile": "http://localhost:8000",
+      "/fhir": "http://localhost:8000",
     },
   },
 });

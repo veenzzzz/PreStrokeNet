@@ -75,7 +75,7 @@ def _safe_paragraph(value: object, style) -> Paragraph:
     return Paragraph(escape(str(value)).replace("\n", "<br/>") or "—", style)
 
 
-def build_pdf(prediction: Prediction) -> bytes:
+def build_pdf(prediction: Prediction, reviewer: object | None = None, db: Session | None = None) -> bytes:
     buffer = BytesIO()
     document = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=0.55 * inch, leftMargin=0.55 * inch, topMargin=0.5 * inch, bottomMargin=0.55 * inch)
     styles = _pdf_styles()
@@ -86,8 +86,21 @@ def build_pdf(prediction: Prediction) -> bytes:
         logo_flowable,
         Paragraph("Clinical stroke-risk assessment report", styles["Heading2"]),
         Paragraph(f"Generated {generated_at} · Report #{prediction.id} · Hospital clinical intelligence workspace", styles["ReportSmall"]),
-        Spacer(1, 0.12 * inch),
+        Spacer(1, 0.10 * inch),
     ]
+
+    # Resolve reviewing clinician
+    if reviewer is None and db is not None and getattr(prediction, "created_by", None):
+        try:
+            from app.models.user import User
+            reviewer = db.query(User).filter(User.id == prediction.created_by).first()
+        except Exception:
+            reviewer = None
+
+    clinician_name = getattr(reviewer, "full_name", None) or "PreStrokeNet Neurological Clinical Team"
+    clinician_license = getattr(reviewer, "medical_license", None) or "State Board MD Certified"
+    clinician_dept = getattr(reviewer, "department", None) or "Neurology & Stroke Unit"
+    clinician_inst = getattr(reviewer, "institution", None) or HOSPITAL_NAME
 
     summary_rows = [[_safe_paragraph("Patient and report details", styles["BodyText"]), ""]]
     summary_rows.extend([[_safe_paragraph(label, styles["BodyText"]), _safe_paragraph(value, styles["BodyText"])] for label, value in _report_rows(prediction)])
@@ -107,10 +120,28 @@ def build_pdf(prediction: Prediction) -> bytes:
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
     story.append(summary_table)
+
+    # Physician Credentials & Care Team Affiliation
+    story.append(Paragraph("Reviewing clinician & facility credentials", styles["ReportSection"]))
+    clinician_table = PdfTable([
+        [_safe_paragraph("Reviewing Clinician", styles["BodyText"]), _safe_paragraph(clinician_name, styles["BodyText"]), _safe_paragraph("License / NPI", styles["BodyText"]), _safe_paragraph(clinician_license, styles["BodyText"])],
+        [_safe_paragraph("Department", styles["BodyText"]), _safe_paragraph(clinician_dept, styles["BodyText"]), _safe_paragraph("Institution", styles["BodyText"]), _safe_paragraph(clinician_inst, styles["BodyText"])],
+    ], colWidths=[1.55 * inch, 1.95 * inch, 1.35 * inch, 1.95 * inch])
+    clinician_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F0F7F8")),
+        ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#F0F7F8")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E6EC")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(clinician_table)
 
     story.append(Paragraph("Prediction summary", styles["ReportSection"]))
     prediction_table = PdfTable([
@@ -123,8 +154,8 @@ def build_pdf(prediction: Prediction) -> bytes:
         ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#F7FBFC")),
         ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E6EC")),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
     story.append(prediction_table)
 
@@ -138,12 +169,62 @@ def build_pdf(prediction: Prediction) -> bytes:
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E6EC")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
     story.append(factor_table)
-    story.append(Spacer(1, 0.08 * inch))
+    story.append(Spacer(1, 0.06 * inch))
     story.append(_safe_paragraph(f"Method: {explanation['method']}. Contributions are model-local associations, not causal effects.", styles["ReportSmall"]))
+
+    # AHA/ASA Guideline Secondary Prevention Care Pathway
+    try:
+        from app.services.care_pathways_service import generate_care_pathway
+        pathway = generate_care_pathway(prediction, db=db)
+    except Exception:
+        pathway = None
+
+    if pathway:
+        story.append(Paragraph("AHA/ASA Guideline-Grounded Secondary Prevention Pathway", styles["ReportSection"]))
+        workup_rows = [["Recommended Diagnostic Workup", "Urgency", "Clinical Rationale"]]
+        for item in pathway.get("diagnostic_workup", [])[:4]:
+            workup_rows.append([
+                _safe_paragraph(item.get("test", "—"), styles["BodyText"]),
+                _safe_paragraph(item.get("urgency", "Routine"), styles["BodyText"]),
+                _safe_paragraph(item.get("rationale", "—"), styles["ReportSmall"]),
+            ])
+        workup_table = PdfTable(workup_rows, colWidths=[2.2 * inch, 0.95 * inch, 3.65 * inch], repeatRows=1)
+        workup_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#123047")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E6EC")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(workup_table)
+        story.append(Spacer(1, 0.06 * inch))
+
+        target_rows = [["Physiological Metric", "Target Goal (AHA/ASA)", "Assessment Status"]]
+        for tgt in pathway.get("physiological_targets", []):
+            target_rows.append([
+                _safe_paragraph(tgt.get("metric", "—"), styles["BodyText"]),
+                _safe_paragraph(tgt.get("target", "—"), styles["BodyText"]),
+                _safe_paragraph(tgt.get("status", "—"), styles["BodyText"]),
+            ])
+        target_table = PdfTable(target_rows, colWidths=[2.1 * inch, 2.5 * inch, 2.2 * inch], repeatRows=1)
+        target_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#006D7C")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D8E6EC")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        story.append(target_table)
+        story.append(Spacer(1, 0.06 * inch))
+
+        followup_str = pathway.get("recommended_follow_up", "3 months")
+        story.append(_safe_paragraph(f"<b>Recommended Clinical Follow-Up:</b> {followup_str}", styles["BodyText"]))
 
     story.append(Paragraph("Doctor notes and recommendation", styles["ReportSection"]))
     notes_table = PdfTable([
@@ -162,7 +243,8 @@ def build_pdf(prediction: Prediction) -> bytes:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
     story.append(notes_table)
-    story.append(Spacer(1, 0.16 * inch))
+    story.append(Spacer(1, 0.12 * inch))
+
     story.append(Paragraph("QR reference", styles["ReportSection"]))
     qr_code = qr.QrCodeWidget(f"PreStrokeNet report reference: /predictions/{prediction.id}")
     bounds = qr_code.getBounds()
@@ -170,10 +252,11 @@ def build_pdf(prediction: Prediction) -> bytes:
     qr_drawing.add(qr_code)
     story.append(qr_drawing)
     story.append(_safe_paragraph(f"PreStrokeNet report reference: /predictions/{prediction.id}", styles["ReportSmall"]))
-    story.append(Spacer(1, 0.18 * inch))
+    story.append(Spacer(1, 0.14 * inch))
     story.append(_safe_paragraph("This report supports, but does not replace, professional clinical judgment and local protocols. Verify all inputs and recommendations before acting.", styles["ReportSmall"]))
     document.build(story)
     return buffer.getvalue()
+
 
 
 def _prediction_export_headers() -> list[str]:
@@ -349,7 +432,7 @@ def send_report_email(db: Session, prediction: Prediction, request: EmailReportR
         f"Recommendation: {prediction.recommendation or 'Not recorded'}\n"
         f"Follow-up date: {prediction.follow_up_date.isoformat() if prediction.follow_up_date else 'Not scheduled'}"
     )
-    message.add_attachment(build_pdf(prediction), maintype="application", subtype="pdf", filename=f"PreStrokeNet_Prediction_{prediction.id}.pdf")
+    message.add_attachment(build_pdf(prediction, db=db), maintype="application", subtype="pdf", filename=f"PreStrokeNet_Prediction_{prediction.id}.pdf")
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:

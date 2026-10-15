@@ -297,10 +297,16 @@ def main():
     print("\nRunning Feature Importance Stability Analysis...")
     clf = pipeline.named_steps["classifier"]
     raw_importances = clf.feature_importances_
-    feature_names = ["Gender", "Age", "Hypertension", "Heart Disease", "Ever Married", "Work Type", "Residence Type", "Avg Glucose", "BMI", "Smoking Status"]
+    # Preprocessor ColumnTransformer orders numerical columns first, then categorical:
+    # num: age, avg_glucose_level, bmi
+    # cat: gender, hypertension, heart_disease, ever_married, work_type, Residence_type, smoking_status
+    transformed_feature_names = [
+        "Age", "Avg Glucose", "BMI", "Gender", "Hypertension",
+        "Heart Disease", "Ever Married", "Work Type", "Residence Type", "Smoking Status"
+    ]
     
     feature_imp_df = pd.DataFrame({
-        "Feature": feature_names[:len(raw_importances)],
+        "Feature": transformed_feature_names,
         "Importance": raw_importances
     }).sort_values(by="Importance", ascending=False)
 
@@ -403,7 +409,7 @@ def main():
     ax.set_yticks(y_pos)
     ax.set_yticklabels(feature_imp_df["Feature"])
     ax.invert_yaxis()
-    ax.set_title("Global Feature Importance (TreeSHAP & Random Forest)")
+    ax.set_title("Random Forest Native Feature Importance (Gini)")
     ax.set_xlabel("Feature Importance Weight")
     fig.tight_layout()
     fig.savefig(os.path.join(PLOTS_DIR, "phase14_global_shap_importance.png"), dpi=300)

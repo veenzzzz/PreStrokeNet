@@ -186,10 +186,18 @@ def generate_assistant_response(
             detail="ROC-AUC 0.8801, Recall 0.8810, PR-AUC 0.4298, F1 0.2803"
         ))
 
+    if any(k in msg_lower for k in ["guideline", "care plan", "pathway", "target", "protocol", "aha", "asa", "prevention", "action"]):
+        citations.append(CitationItem(
+            source="Clinical Guidelines",
+            label="AHA/ASA Stroke Prevention Guidelines",
+            detail="BP < 130/80 mmHg, HbA1c < 7.0%, LDL-C < 70 mg/dL, FAST Protocol"
+        ))
+
     # 6. Suggested Questions
     suggested_questions = [
         "Why is this patient classified under their current risk level?",
         "What are the strongest SHAP factors influencing this prediction?",
+        "What are the AHA/ASA clinical prevention guideline targets?",
         "How has the patient's predicted risk changed compared to previous assessments?",
         "Summarize the doctor notes and follow-up schedule.",
         "What are the production model accuracy and limitation metrics?"
@@ -197,10 +205,124 @@ def generate_assistant_response(
 
     provider_name = provider.health_check().get("provider", "grounded")
 
+    # 7. Persist to ChatSession / ChatMessage
+    session_id = request.session_id
+    try:
+        import json
+        from app.models.clinical_chat import ChatSession, ChatMessage as DBChatMessage
+        session = None
+        if session_id:
+            session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id).first()
+
+        if not session:
+            p_label = context_summary.patient_name or context_summary.patient_id or "Clinical Case"
+            session = ChatSession(
+                user_id=current_user.id,
+                patient_id=context_summary.patient_id,
+                prediction_id=request.prediction_id,
+                title=f"Case Review: {p_label}"
+            )
+            db.add(session)
+            db.flush()
+            session_id = session.id
+
+        user_msg = DBChatMessage(
+            session_id=session.id,
+            role="user",
+            content=request.message,
+            citations_json=None
+        )
+        db.add(user_msg)
+
+        c_json = json.dumps([c.model_dump() for c in citations])
+        asst_msg = DBChatMessage(
+            session_id=session.id,
+            role="assistant",
+            content=answer_text,
+            citations_json=c_json
+        )
+        db.add(asst_msg)
+        db.commit()
+    except Exception as exc:
+        logger.warning(f"Failed to persist chat message session: {exc}")
+        db.rollback()
+
     return ChatResponse(
         answer=answer_text,
+        session_id=session_id,
         citations=citations,
         context_summary=context_summary,
         suggested_questions=suggested_questions,
         provider=provider_name
     )
+
+
+def list_chat_sessions(db: Session, user_id: int, patient_id: str | None = None) -> list:
+    from app.models.clinical_chat import ChatSession, ChatMessage as DBChatMessage
+    from app.schemas.clinical_assistant import ChatSessionSummary
+    query = db.query(ChatSession).filter(ChatSession.user_id == user_id)
+    if patient_id:
+        query = query.filter(ChatSession.patient_id == patient_id)
+    sessions = query.order_by(ChatSession.created_at.desc()).all()
+
+    result = []
+    for s in sessions:
+        msg_count = db.query(DBChatMessage).filter(DBChatMessage.session_id == s.id).count()
+        result.append(ChatSessionSummary(
+            id=s.id,
+            patient_id=s.patient_id,
+            prediction_id=s.prediction_id,
+            title=s.title,
+            created_at=s.created_at,
+            updated_at=s.updated_at,
+            message_count=msg_count
+        ))
+    return result
+
+
+def get_chat_session_detail(db: Session, session_id: int, user_id: int):
+    import json
+    from app.models.clinical_chat import ChatSession, ChatMessage as DBChatMessage
+    from app.schemas.clinical_assistant import ChatMessageItem, ChatSessionDetail, CitationItem
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user_id).first()
+    if not session:
+        return None
+
+    db_messages = db.query(DBChatMessage).filter(DBChatMessage.session_id == session.id).order_by(DBChatMessage.id.asc()).all()
+    messages = []
+    for m in db_messages:
+        citations = []
+        if m.citations_json:
+            try:
+                raw_c = json.loads(m.citations_json)
+                citations = [CitationItem(**c) for c in raw_c]
+            except Exception:
+                pass
+        messages.append(ChatMessageItem(
+            id=m.id,
+            role=m.role,
+            content=m.content,
+            citations=citations,
+            created_at=m.created_at
+        ))
+
+    return ChatSessionDetail(
+        id=session.id,
+        patient_id=session.patient_id,
+        prediction_id=session.prediction_id,
+        title=session.title,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        messages=messages
+    )
+
+
+def delete_chat_session(db: Session, session_id: int, user_id: int) -> bool:
+    from app.models.clinical_chat import ChatSession
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == user_id).first()
+    if not session:
+        return False
+    db.delete(session)
+    db.commit()
+    return True
+

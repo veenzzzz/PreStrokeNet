@@ -33,3 +33,19 @@ export async function downloadCsv(params: PredictionSearchParams) {
 export async function emailReport(id: number, payload: EmailReportPayload) {
   await api.post(`/reports/${id}/email`, payload);
 }
+
+export async function downloadFhirBundle(predictionId: number) {
+  const response = await api.get(`/fhir/predictions/${predictionId}`);
+  const jsonString = JSON.stringify(response.data, null, 2);
+  const blob = new Blob([jsonString], { type: "application/json" });
+  downloadBlob(blob, `PreStrokeNet_FHIR_Bundle_Prediction_${predictionId}.json`);
+}
+
+export async function downloadPatientFhirBundle(patientId: string) {
+  const response = await api.get(`/fhir/patients/${encodeURIComponent(patientId)}`);
+  const jsonString = JSON.stringify(response.data, null, 2);
+  const blob = new Blob([jsonString], { type: "application/json" });
+  downloadBlob(blob, `PreStrokeNet_FHIR_Bundle_Patient_${patientId}.json`);
+}
+
+

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 UserRole = Literal["Admin", "Doctor"]
@@ -23,14 +23,21 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: UserRole
     is_active: bool
+    phone: str | None = None
+    medical_license: str | None = None
+    department: str | None = None
+    institution: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProfileUpdate(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     email: EmailStr
+    phone: str | None = None
+    medical_license: str | None = None
+    department: str | None = None
+    institution: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Any, Literal
 
@@ -9,6 +10,7 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     patient_id: str | None = Field(default=None, max_length=100)
     prediction_id: int | None = Field(default=None, ge=1)
+    session_id: int | None = Field(default=None, ge=1)
     history: list[ChatMessage] = Field(default_factory=list)
 
 class CitationItem(BaseModel):
@@ -29,6 +31,7 @@ class AssistantContextSummary(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    session_id: int | None = None
     citations: list[CitationItem] = Field(default_factory=list)
     context_summary: AssistantContextSummary
     suggested_questions: list[str] = Field(default_factory=list)
@@ -37,3 +40,29 @@ class ChatResponse(BaseModel):
         "and decision support. It does not provide medical diagnoses or replace clinical judgment."
     )
     provider: str = "grounded"
+
+class ChatMessageItem(BaseModel):
+    id: int
+    role: str
+    content: str
+    citations: list[CitationItem] = Field(default_factory=list)
+    created_at: datetime
+
+class ChatSessionSummary(BaseModel):
+    id: int
+    patient_id: str | None = None
+    prediction_id: int | None = None
+    title: str
+    created_at: datetime
+    updated_at: datetime | None = None
+    message_count: int = 0
+
+class ChatSessionDetail(BaseModel):
+    id: int
+    patient_id: str | None = None
+    prediction_id: int | None = None
+    title: str
+    created_at: datetime
+    updated_at: datetime | None = None
+    messages: list[ChatMessageItem] = Field(default_factory=list)
+

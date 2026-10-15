@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 
@@ -21,9 +20,14 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-app text-text">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="lg:pl-72">
+
+      {/* Main content area offset by sidebar width on large screens */}
+      <div
+        className="flex min-h-screen flex-col transition-all duration-300"
+        style={{ paddingLeft: "var(--sidebar-width)" }}
+      >
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="px-4 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 animate-fade-up">
           <Outlet />
         </main>
       </div>

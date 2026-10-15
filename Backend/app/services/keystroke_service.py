@@ -52,13 +52,12 @@ def get_keystroke_analytics(prediction: Prediction, db: Session) -> Dict[str, An
         "pause_frequency": 1.0 if ud_val > 0.3 else 0.0
     }
     
-    # Query user's historical predictions to build baseline profile
-    user_id = prediction.created_by
+    # Query patient's historical predictions to build personalized behavioral baseline profile
     history_query = db.query(Prediction)
-    if user_id:
-        history_query = history_query.filter(Prediction.created_by == user_id)
-    else:
+    if getattr(prediction, "patient_id", None):
         history_query = history_query.filter(Prediction.patient_id == prediction.patient_id)
+    elif getattr(prediction, "created_by", None):
+        history_query = history_query.filter(Prediction.created_by == prediction.created_by)
         
     past_predictions = history_query.filter(Prediction.id != prediction.id).order_by(Prediction.created_at.desc()).limit(10).all()
     

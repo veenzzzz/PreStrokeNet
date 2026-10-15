@@ -1,4 +1,5 @@
 from app.models.audit_log import AuditLog
+from app.models.clinical_chat import ChatMessage, ChatSession
 from app.models.follow_up import PatientFollowUp
 from app.models.notification import Notification
 from app.models.password_reset_token import PasswordResetToken
@@ -10,6 +11,8 @@ from app.models.user import User
 
 __all__ = [
     "AuditLog",
+    "ChatMessage",
+    "ChatSession",
     "PatientFollowUp",
     "Notification",
     "PasswordResetToken",

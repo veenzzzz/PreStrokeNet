@@ -56,7 +56,23 @@ class GroundedRuleProvider(BaseAIProvider):
                 return "All primary patient record fields (latest prediction, SHAP attributions, historical assessments, and clinician notes) are available in the context."
             return "The following information is currently absent or unrecorded in the available patient context:\n- " + "\n- ".join(missing)
 
-        # 3. Model Analytics & Limitations Questions
+        # 3. Clinical Guidelines / AHA/ASA Protocol Queries
+        if any(w in query for w in ["guideline", "care plan", "pathway", "target", "protocol", "aha", "asa", "clinical action", "prevention", "next step", "management"]):
+            p_risk = prediction.get("risk", "Screening")
+            c_glucose = prediction.get("avg_glucose_level", 0)
+            c_htn = prediction.get("hypertension", 0)
+            return (
+                f"**AHA/ASA Clinical Practice Stroke Prevention Guidelines Summary:**\n\n"
+                f"- **Blood Pressure Management:** Target blood pressure is `< 130/80 mmHg` (AHA/ASA Secondary Prevention Guidelines). {'Hypertension is recorded in this profile; continuous blood pressure surveillance and pharmacological optimization recommended.' if c_htn else 'Routine blood pressure surveillance indicated.'}\n"
+                f"- **Glycemic Control:** Fasting plasma glucose `< 100 mg/dL` and target `HbA1c < 7.0%`. {'Elevated glucose level recorded; repeat fasting plasma glucose and HbA1c panel recommended.' if c_glucose and float(c_glucose) > 140 else 'Standard glycemic monitoring indicated.'}\n"
+                f"- **Lipid Management:** Target LDL-C `< 70 mg/dL` with statin therapy recommended for high cardiovascular/stroke risk profiles.\n"
+                f"- **Lifestyle Interventions:** Mediterranean-style dietary pattern, sodium reduction (`< 2,300 mg/day`), and `≥ 150 minutes/week` of moderate aerobic physical activity.\n"
+                f"- **Diagnostic Workup:** For elevated screening probability ({p_risk} Risk), consider carotid duplex ultrasound, 24-48 hr Holter monitoring for occult atrial fibrillation, and echocardiography.\n"
+                f"- **Neurological Deficit Surveillance:** Educate patient and care team on FAST protocol (Face drooping, Arm weakness, Speech difficulty, Time to call emergency).\n\n"
+                f"*Disclaimer: Guidelines provided for clinical reference. Treatment plans must be individualized by the attending physician.*"
+            )
+
+        # 4. Model Analytics & Limitations Questions
         if any(w in query for w in ["model limitation", "limitation", "accuracy", "metrics", "recall", "precision", "f1", "roc", "auc", "brier", "dataset"]):
             prod = analytics.get("production_model", {}) if analytics else {}
             auc_val = prod.get("roc_auc", 0.8801)

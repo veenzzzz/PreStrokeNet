@@ -57,3 +57,23 @@ export async function predictFinal(payload: PredictFinalRequest, callerSignal?: 
     throw new PredictionRequestError(kind, getApiErrorMessage(error, kind === "offline" ? "The prediction service is offline. Start the backend and try again." : "Prediction failed unexpectedly. Try again."));
   }
 }
+
+export async function downloadBatchTemplate(): Promise<void> {
+  const response = await api.get<Blob>("/predictions/batch-template", { responseType: "blob" });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "PreStrokeNet_Batch_Template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function uploadBatchCsv(file: File): Promise<import("../types").BatchScreeningResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await api.post<import("../types").BatchScreeningResponse>("/predictions/batch-csv", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+}
+

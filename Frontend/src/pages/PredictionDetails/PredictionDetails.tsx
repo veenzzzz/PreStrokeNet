@@ -2,11 +2,13 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Bot,
+  Database,
   FileSpreadsheet,
   FileText,
   Mail,
   Printer,
   Save,
+  Send,
   ShieldCheck,
   Trash2,
   UserCheck,
@@ -22,11 +24,14 @@ import { SkeletonCard, SkeletonTable } from "../../components/Skeleton";
 import { useToast } from "../../components/useToast";
 import { getApiErrorMessage } from "../../services/authService";
 import { deletePrediction, getPrediction, updateDoctorNotes, updatePrediction } from "../../services/predictionHistoryService";
-import { downloadExcel, downloadPdf, emailReport } from "../../services/reportService";
+import { downloadExcel, downloadFhirBundle, downloadPdf, emailReport } from "../../services/reportService";
 import type { DoctorNotePayload, EmailReportPayload, PredictionDetail, PredictionUpdatePayload } from "../../types";
 import { ExplainabilityPanel } from "../Prediction/components/ExplainabilityPanel";
 import { EmailReportDialog } from "../Reports/components/EmailReportDialog";
+import { CarePathwayPanel } from "./components/CarePathwayPanel";
+import { CounterfactualSimulator } from "./components/CounterfactualSimulator";
 import { KeystrokeAnalyticsPanel } from "./components/KeystrokeAnalyticsPanel";
+import { ReferralLetterModal } from "./components/ReferralLetterModal";
 import { WhyRiskView } from "./components/WhyRiskView";
 import { PredictionEditForm } from "./PredictionEditForm";
 
@@ -62,6 +67,7 @@ export function PredictionDetails() {
   const [followUpDate, setFollowUpDate] = useState("");
   const [status, setStatus] = useState<DoctorNotePayload["status"]>("reviewed");
   const [isEmailOpen, setIsEmailOpen] = useState(false);
+  const [isReferralOpen, setIsReferralOpen] = useState(false);
   const { notify } = useToast();
 
   const load = useCallback(() => {
@@ -236,10 +242,45 @@ export function PredictionDetails() {
               Final Probability = 0.7 × Clinical Prob + 0.3 × Keystroke Prob
               <p className="mt-1 text-[11px] italic text-muted">* Model-assessed probability is decision-support output and does not constitute a diagnostic conclusion.</p>
             </div>
+
+            {/* CALIBRATION & 95% UNCERTAINTY BOUNDS */}
+            {(detail as any).calibration_metrics && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2 text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-primary tracking-wider">
+                    Model Calibration & 95% Uncertainty Bounds
+                  </span>
+                  <span className="badge bg-primary/20 text-primary border border-primary/30 text-[10px] font-bold">
+                    Confidence: {(detail as any).calibration_metrics.confidence_grade}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-text">
+                  <span>
+                    95% Wilson CI:{" "}
+                    <strong>
+                      {((detail as any).calibration_metrics.lower_95_ci * 100).toFixed(1)}% – {((detail as any).calibration_metrics.upper_95_ci * 100).toFixed(1)}%
+                    </strong>{" "}
+                    (±{((detail as any).calibration_metrics.margin_of_error * 100).toFixed(1)}%)
+                  </span>
+                  <span className="text-muted text-[11px]">
+                    Brier Benchmark: {(detail as any).calibration_metrics.brier_score_benchmark}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted italic font-sans leading-relaxed">
+                  {(detail as any).calibration_metrics.confidence_label}
+                </p>
+              </div>
+            )}
           </section>
 
           {/* 4. WHY THIS SCORE? (TREESHAP ATTRIBUTIONS) */}
           <WhyRiskView predictionId={detail.id} />
+
+          {/* 4b. PERSONALIZED CLINICAL CARE PATHWAY & ACTION PLAN */}
+          <CarePathwayPanel predictionId={detail.id} />
+
+          {/* 4c. INTERACTIVE WHAT-IF COUNTERFACTUAL INTERVENTION SIMULATOR */}
+          <CounterfactualSimulator predictionId={detail.id} />
 
           {/* 5. ADDITIONAL EXPLAINABILITY PANEL */}
           <ExplainabilityPanel explainability={detail.explainability} />
@@ -297,8 +338,14 @@ export function PredictionDetails() {
               <Button variant="secondary" icon={FileSpreadsheet} onClick={() => void download(() => downloadExcel(detail.id), "Excel exported")}>
                 Download Excel
               </Button>
+              <Button variant="secondary" icon={Database} onClick={() => void download(() => downloadFhirBundle(detail.id), "FHIR R4 Bundle exported")}>
+                Export FHIR R4 (JSON)
+              </Button>
               <Button variant="secondary" icon={Printer} onClick={() => window.print()}>
                 Print Report
+              </Button>
+              <Button variant="secondary" icon={Send} onClick={() => setIsReferralOpen(true)}>
+                Specialist Referral Letter
               </Button>
               <Button variant="secondary" icon={Mail} onClick={() => setIsEmailOpen(true)}>
                 Email Report
@@ -387,6 +434,11 @@ export function PredictionDetails() {
       </div>
 
       <EmailReportDialog open={isEmailOpen} patientLabel={detail.patient_name || detail.patient_id || "patient"} isLoading={isSaving} onClose={() => setIsEmailOpen(false)} onSubmit={sendEmail} />
+      <ReferralLetterModal
+        isOpen={isReferralOpen}
+        onClose={() => setIsReferralOpen(false)}
+        predictionId={detail.id}
+      />
     </div>
   );
 }

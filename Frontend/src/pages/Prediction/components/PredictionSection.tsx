@@ -3,22 +3,41 @@ import type { ReactNode } from "react";
 
 interface PredictionSectionProps {
   icon: LucideIcon;
-  iconClassName?: string;
+  iconColor?: string;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function PredictionSection({ icon: Icon, iconClassName = "bg-primary/10 text-primary", title, description, children }: PredictionSectionProps) {
+export function PredictionSection({
+  icon: Icon,
+  iconColor = "var(--primary)",
+  title,
+  description,
+  children,
+  className = "",
+}: PredictionSectionProps) {
   return (
-    <section className="glass-panel p-6 sm:p-7">
-      <div className="flex items-start gap-3">
-        <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}>
-          <Icon className="size-5" aria-hidden="true" />
+    <section
+      className={`rounded-xl border border-line p-5 sm:p-6 ${className}`}
+      style={{ background: "var(--surface)" }}
+    >
+      <div className="flex items-start gap-3 mb-5">
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+          style={{
+            background: `color-mix(in srgb, ${iconColor} 12%, transparent)`,
+            color: iconColor,
+          }}
+        >
+          <Icon className="size-4" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="font-display text-xl font-bold text-text">{title}</h2>
-          <p className="mt-1 text-sm text-muted">{description}</p>
+          <h2 className="text-sm font-bold text-text">{title}</h2>
+          {description && (
+            <p className="mt-0.5 text-xs leading-5 text-muted">{description}</p>
+          )}
         </div>
       </div>
       {children}

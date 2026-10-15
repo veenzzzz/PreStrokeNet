@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.auth import get_current_user, require_roles
@@ -8,6 +8,7 @@ from app.models.user import User
 from app.services.clinical_workflow_service import (
     add_saved_patient,
     create_patient_follow_up,
+    export_audit_logs_csv,
     get_audit_logs,
     get_clinician_work_queue,
     get_patient_follow_ups,
@@ -137,10 +138,33 @@ def record_doctor_action(
 
 
 @router.get("/audit-log")
+@router.get("/audit-logs")
 def get_audit_log_viewer(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    action: Optional[str] = Query(None, description="Filter by clinical action"),
+    patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("Admin", "Doctor")),
 ):
-    return get_audit_logs(db, current_user, page=page, limit=limit)
+    return get_audit_logs(db, current_user, page=page, limit=limit, action=action, patient_id=patient_id)
+
+
+@router.get("/audit-log/export-csv")
+@router.get("/audit-logs/export-csv")
+def export_audit_log_csv(
+    action: Optional[str] = Query(None, description="Filter by clinical action"),
+    patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Admin", "Doctor")),
+):
+    csv_data, checksum = export_audit_logs_csv(db, current_user, action=action, patient_id=patient_id)
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="PreStrokeNet_Audit_Log_HIPAA_Export.csv"',
+            "X-Audit-Checksum-SHA256": checksum,
+        },
+    )
+

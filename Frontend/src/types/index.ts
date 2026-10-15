@@ -10,6 +10,10 @@ export interface AuthUser {
   fullName: string;
   email: string;
   role: UserRole;
+  phone?: string | null;
+  medicalLicense?: string | null;
+  department?: string | null;
+  institution?: string | null;
 }
 
 export interface LoginPayload {
@@ -81,11 +85,19 @@ export interface ProfilePayload {
   email: string;
   role: UserRole;
   is_active: boolean;
+  phone?: string | null;
+  medical_license?: string | null;
+  department?: string | null;
+  institution?: string | null;
 }
 
 export interface ProfileUpdatePayload {
   full_name: string;
   email: string;
+  phone?: string | null;
+  medical_license?: string | null;
+  department?: string | null;
+  institution?: string | null;
 }
 
 export interface ForgotPasswordPayload {
@@ -392,6 +404,7 @@ export interface AssistantChatRequest {
   message: string;
   patient_id?: string;
   prediction_id?: number;
+  session_id?: number;
   history?: AssistantChatMessage[];
 }
 
@@ -415,11 +428,40 @@ export interface AssistantContextSummary {
 
 export interface AssistantChatResponse {
   answer: string;
+  session_id?: number;
   citations: CitationItem[];
   context_summary: AssistantContextSummary;
   suggested_questions: string[];
   disclaimer: string;
   provider: string;
+}
+
+export interface AssistantChatSessionSummary {
+  id: number;
+  patient_id?: string | null;
+  prediction_id?: number | null;
+  title: string;
+  created_at: string;
+  updated_at?: string | null;
+  message_count: number;
+}
+
+export interface AssistantChatMessageItem {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  citations: CitationItem[];
+  created_at: string;
+}
+
+export interface AssistantChatSessionDetail {
+  id: number;
+  patient_id?: string | null;
+  prediction_id?: number | null;
+  title: string;
+  created_at: string;
+  updated_at?: string | null;
+  messages: AssistantChatMessageItem[];
 }
 
 export interface KeystrokeAnalytics {
@@ -454,5 +496,109 @@ export interface KeystrokeAnalytics {
   }>;
   disclaimer: string;
 }
+
+export interface CarePathwayDiagnostic {
+  test: string;
+  urgency: string;
+  rationale: string;
+}
+
+export interface CarePathwayTarget {
+  metric: string;
+  target: string;
+  status: string;
+}
+
+export interface CarePathway {
+  prediction_id: number;
+  patient_id?: string | null;
+  patient_name?: string | null;
+  risk_level: string;
+  final_probability: number;
+  primary_risk_drivers: string[];
+  diagnostic_workup: CarePathwayDiagnostic[];
+  physiological_targets: CarePathwayTarget[];
+  neurological_surveillance: string[];
+  lifestyle_interventions: string[];
+  recommended_follow_up: string;
+  disclaimer: string;
+}
+
+export interface BatchPatientRecord {
+  prediction_id: number;
+  patient_name: string;
+  patient_id?: string | null;
+  age: number;
+  gender: string;
+  clinical_probability: number;
+  keystroke_probability: number;
+  final_probability: number;
+  risk: string;
+}
+
+export interface BatchScreeningResponse {
+  total_submitted: number;
+  total_processed: number;
+  high_risk_count: number;
+  medium_risk_count: number;
+  low_risk_count: number;
+  mean_stroke_probability: number;
+  urgent_high_risk_patients: BatchPatientRecord[];
+  processed_records: BatchPatientRecord[];
+  errors: Array<{ row: number; error: string }>;
+}
+
+export interface CounterfactualIntervention {
+  factor: string;
+  label: string;
+  arr: number;
+  description: string;
+}
+
+export interface CounterfactualSimulationData {
+  prediction_id: number;
+  patient_id?: string | null;
+  patient_name?: string | null;
+  baseline: {
+    final_probability: number;
+    risk: string;
+    hypertension: number;
+    smoking_status: number;
+    avg_glucose_level: number;
+    bmi: number;
+  };
+  simulated: {
+    final_probability: number;
+    risk: string;
+    absolute_risk_reduction: number;
+    relative_risk_reduction_pct: number;
+  };
+  intervention_rankings: CounterfactualIntervention[];
+  primary_driver: string;
+  counseling_message: string;
+}
+
+export interface MotorDegradationAlert {
+  patient_id: string;
+  is_degraded: boolean;
+  severity: "HIGH" | "MODERATE" | "NORMAL";
+  status: "SUBCLINICAL_DEGRADATION_DETECTED" | "MILD_MOTOR_SLOWING_DETECTED" | "STABLE" | "INSUFFICIENT_DATA";
+  message: string;
+  session_count: number;
+  baseline_dwell_ms: number;
+  current_dwell_ms: number;
+  baseline_flight_ms: number;
+  current_flight_ms: number;
+  baseline_digraph_ms: number;
+  current_digraph_ms: number;
+  dwell_shift_pct: number;
+  flight_shift_pct: number;
+  digraph_shift_pct: number;
+  latency_shift_pct: number;
+  clinical_rationale: string;
+  recommended_workup: string[];
+  last_assessed_at?: string | null;
+}
+
 
 

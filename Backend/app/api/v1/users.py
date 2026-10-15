@@ -35,6 +35,15 @@ def update_profile(
 
     current_user.full_name = full_name
     current_user.email = email
+    if profile.phone is not None:
+        current_user.phone = profile.phone.strip() if profile.phone else None
+    if profile.medical_license is not None:
+        current_user.medical_license = profile.medical_license.strip() if profile.medical_license else None
+    if profile.department is not None:
+        current_user.department = profile.department.strip() if profile.department else None
+    if profile.institution is not None:
+        current_user.institution = profile.institution.strip() if profile.institution else None
+
     db.commit()
     db.refresh(current_user)
 

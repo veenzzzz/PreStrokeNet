@@ -1,38 +1,28 @@
-import { FolderOpen } from "lucide-react";
-import type { ReactNode } from "react";
-import { Button } from "./Button";
+import { InboxIcon, type LucideIcon } from "lucide-react";
 
 interface EmptyStateProps {
   title: string;
-  description: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  icon?: ReactNode;
+  description?: string;
+  icon?: LucideIcon;
+  action?: React.ReactNode;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-  icon,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, icon: Icon = InboxIcon, action }: EmptyStateProps) {
   return (
-    <div className="glass-panel p-8 sm:p-12 text-center space-y-4 max-w-md mx-auto my-6">
-      <div className="flex justify-center text-muted">
-        {icon || <FolderOpen className="size-10 stroke-[1.5]" />}
+    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+      <span
+        className="flex size-12 items-center justify-center rounded-xl"
+        style={{ background: "var(--surface-strong)", color: "var(--muted)" }}
+      >
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-text">{title}</p>
+        {description && (
+          <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted">{description}</p>
+        )}
       </div>
-      <div className="space-y-1">
-        <h3 className="font-display text-base font-bold text-text">{title}</h3>
-        <p className="text-xs text-muted leading-relaxed">{description}</p>
-      </div>
-      {actionLabel && onAction && (
-        <div className="pt-2">
-          <Button variant="secondary" onClick={onAction}>
-            {actionLabel}
-          </Button>
-        </div>
-      )}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }

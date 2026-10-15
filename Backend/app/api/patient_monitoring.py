@@ -6,6 +6,7 @@ from app.api.v1.auth import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.user import User
 from app.services.patient_monitoring_service import (
+    detect_subclinical_motor_degradation,
     get_patient_monitoring_summary,
     transition_workflow_state,
 )
@@ -21,6 +22,15 @@ def get_monitoring_summary(
     current_user: User = Depends(require_roles("Admin", "Doctor", "Auditor", "QA Audit")),
 ):
     return get_patient_monitoring_summary(db, patient_id)
+
+
+@router.get("/patients/{patient_id}/motor-degradation")
+def get_patient_motor_degradation(
+    patient_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Admin", "Doctor", "Auditor", "QA Audit")),
+):
+    return detect_subclinical_motor_degradation(db, patient_id)
 
 
 @router.post("/patients/{patient_id}/workflow-transition")

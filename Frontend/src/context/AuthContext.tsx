@@ -6,7 +6,16 @@ import { getApiErrorMessage, loginUser, logoutUser, registerUser } from "../serv
 import { getProfile, updateProfile as updateProfileRequest } from "../services/profileService";
 import type { AuthUser, LoginPayload, ProfilePayload, ProfileUpdatePayload, RegisterPayload } from "../types";
 
-const mapProfileToUser = (profile: ProfilePayload): AuthUser => ({ id: profile.id, fullName: profile.full_name, email: profile.email, role: profile.role });
+const mapProfileToUser = (profile: ProfilePayload): AuthUser => ({
+  id: profile.id,
+  fullName: profile.full_name,
+  email: profile.email,
+  role: profile.role,
+  phone: profile.phone,
+  medicalLicense: profile.medical_license,
+  department: profile.department,
+  institution: profile.institution,
+});
 const persistUser = (user: AuthUser) => localStorage.setItem("prestrokenet-user", JSON.stringify(user));
 
 export function AuthProvider({ children }: { children: ReactNode }) {

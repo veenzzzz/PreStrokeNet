@@ -65,12 +65,22 @@ class AuthProfileTests(unittest.TestCase):
 
     def test_profile_update_changes_only_persisted_fields(self):
         updated = update_profile(
-            ProfileUpdate(full_name="Dr. Maya Singh", email="maya.singh@clinic.com"),
+            ProfileUpdate(
+                full_name="Dr. Maya Singh",
+                email="maya.singh@clinic.com",
+                phone="+1-555-0199",
+                medical_license="MD-98765",
+                department="Neurology",
+                institution="City General Hospital"
+            ),
             self.user,
             self.db,
         )
         self.assertEqual(updated.full_name, "Dr. Maya Singh")
         self.assertEqual(updated.email, "maya.singh@clinic.com")
+        self.assertEqual(updated.medical_license, "MD-98765")
+        self.assertEqual(updated.department, "Neurology")
+        self.assertEqual(updated.institution, "City General Hospital")
         self.assertEqual(self.db.get(User, self.user.id).full_name, "Dr. Maya Singh")
 
 

@@ -20,7 +20,7 @@ def download_pdf(
     prediction = get_prediction_or_none(db, prediction_id)
     if prediction is None:
         raise HTTPException(status_code=404, detail="Prediction not found")
-    content = build_pdf(prediction)
+    content = build_pdf(prediction, reviewer=current_user, db=db)
     prediction.pdf_generated = True
     record_activity(db, activity_type="report_downloaded", message="PDF downloaded", prediction_id=prediction.id, actor_id=current_user.id)
     db.commit()

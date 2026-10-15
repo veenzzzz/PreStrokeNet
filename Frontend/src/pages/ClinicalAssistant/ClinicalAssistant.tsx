@@ -6,12 +6,15 @@ import {
   ChevronRight,
   FileText,
   HelpCircle,
+  History,
   Info,
   Layers,
+  Plus,
   RotateCcw,
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   User,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,9 +24,17 @@ import { Button } from "../../components/Button";
 import { ErrorState } from "../../components/ErrorState";
 import { PageHeader } from "../../components/PageHeader";
 import { RiskBadge } from "../../components/PredictionCard";
-import { getAssistantHealth, postAssistantChat, type AssistantHealthResponse } from "../../services/clinicalAssistantService";
+import {
+  deleteAssistantSession,
+  getAssistantHealth,
+  getAssistantSessionDetail,
+  getAssistantSessions,
+  postAssistantChat,
+  type AssistantHealthResponse,
+} from "../../services/clinicalAssistantService";
 import type {
   AssistantChatResponse,
+  AssistantChatSessionSummary,
   AssistantContextSummary,
   CitationItem,
 } from "../../types";
@@ -37,6 +48,7 @@ interface MessageUI {
 }
 
 const DEFAULT_SUGGESTIONS = [
+  "What are the AHA/ASA clinical prevention guideline targets?",
   "Why did this patient's model-assessed risk change?",
   "What are the strongest TreeSHAP model-attributed factors?",
   "Summarize this patient's recent risk progression.",
@@ -63,12 +75,27 @@ export function ClinicalAssistant() {
   const [error, setError] = useState("");
   const [contextSummary, setContextSummary] = useState<AssistantContextSummary | null>(null);
   const [healthState, setHealthState] = useState<AssistantHealthResponse | null>(null);
+  const [sessions, setSessions] = useState<AssistantChatSessionSummary[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<number | undefined>(undefined);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getAssistantHealth().then(setHealthState);
   }, []);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await getAssistantSessions(patientIdParam);
+      setSessions(data);
+    } catch {
+      // Non-fatal session list loading
+    }
+  }, [patientIdParam]);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,6 +104,54 @@ export function ClinicalAssistant() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  const handleSelectSession = async (sessId: number) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const detail = await getAssistantSessionDetail(sessId);
+      if (detail) {
+        setCurrentSessionId(detail.id);
+        const mappedMessages: MessageUI[] = detail.messages.map((m) => ({
+          id: `msg-${m.id}`,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          citations: m.citations,
+          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        }));
+        setMessages(mappedMessages);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load consultation session.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNewSession = () => {
+    setCurrentSessionId(undefined);
+    setMessages([
+      {
+        id: "welcome-new",
+        role: "assistant",
+        content: "New clinical case consultation initialized. How can I assist you with this patient record or clinical guidelines?",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ]);
+  };
+
+  const handleDeleteSession = async (sessId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteAssistantSession(sessId);
+      if (currentSessionId === sessId) {
+        handleNewSession();
+      }
+      loadSessions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete consultation session.");
+    }
+  };
 
   const fetchInitialContext = useCallback(async () => {
     if (!patientIdParam && !predictionIdParam) return;
@@ -87,8 +162,12 @@ export function ClinicalAssistant() {
         message: "Provide a clinical decision-support summary of the selected record.",
         patient_id: patientIdParam,
         prediction_id: predictionIdParam,
+        session_id: currentSessionId,
       });
       setContextSummary(res.context_summary);
+      if (res.session_id) {
+        setCurrentSessionId(res.session_id);
+      }
       setMessages([
         {
           id: `init-${Date.now()}`,
@@ -98,12 +177,13 @@ export function ClinicalAssistant() {
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
+      loadSessions();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load assistant context.");
     } finally {
       setIsLoading(false);
     }
-  }, [patientIdParam, predictionIdParam]);
+  }, [patientIdParam, predictionIdParam, currentSessionId, loadSessions]);
 
   useEffect(() => {
     fetchInitialContext();
@@ -130,8 +210,12 @@ export function ClinicalAssistant() {
         message: query,
         patient_id: patientIdParam,
         prediction_id: predictionIdParam,
+        session_id: currentSessionId,
       });
 
+      if (res.session_id) {
+        setCurrentSessionId(res.session_id);
+      }
       if (res.context_summary) {
         setContextSummary(res.context_summary);
       }
@@ -145,6 +229,7 @@ export function ClinicalAssistant() {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+      loadSessions();
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI Assistant request failed.");
     } finally {
@@ -260,6 +345,56 @@ export function ClinicalAssistant() {
                 <p>No specific patient record selected.</p>
                 <p className="text-[11px] text-muted">Launch from Patient 360 or Prediction Details to inspect active patient context.</p>
               </div>
+            )}
+          </div>
+
+          {/* Saved Consultations List */}
+          <div className="glass-panel p-5 space-y-3 font-mono text-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-2">
+                <History className="size-4 text-primary" /> Consultations
+              </h3>
+              <button
+                onClick={handleNewSession}
+                className="text-[11px] font-bold text-primary hover:text-primary/80 flex items-center gap-1 transition"
+                title="Start new consultation"
+              >
+                <Plus className="size-3" /> New
+              </button>
+            </div>
+
+            {sessions.length > 0 ? (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => handleSelectSession(s.id)}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between gap-2 group ${
+                      currentSessionId === s.id
+                        ? "bg-primary/15 border-primary/40 text-text"
+                        : "bg-white/[0.02] border-line hover:bg-white/[0.05] text-muted hover:text-text"
+                    }`}
+                  >
+                    <div className="truncate">
+                      <div className="font-semibold truncate text-[11px]">{s.title}</div>
+                      <div className="text-[10px] text-muted flex items-center gap-2 mt-0.5">
+                        <span>{new Date(s.created_at).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+                        <span>•</span>
+                        <span>{s.message_count} msgs</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteSession(s.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-danger rounded transition shrink-0"
+                      title="Delete consultation"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted italic">No prior saved consultations.</p>
             )}
           </div>
 

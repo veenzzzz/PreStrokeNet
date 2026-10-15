@@ -258,10 +258,21 @@ def update_patient_follow_up(db: Session, user: User, followup_id: int, status_u
 
 
 # Audit Log Service
-def get_audit_logs(db: Session, user: User, page: int = 1, limit: int = 50) -> dict[str, Any]:
+def get_audit_logs(
+    db: Session,
+    user: User,
+    page: int = 1,
+    limit: int = 50,
+    action: Optional[str] = None,
+    patient_id: Optional[str] = None,
+) -> dict[str, Any]:
     query = db.query(AuditLog)
     if user.role != "Admin":
         query = query.filter(AuditLog.user_id == user.id)
+    if action:
+        query = query.filter(AuditLog.action.ilike(f"%{action}%"))
+    if patient_id:
+        query = query.filter(AuditLog.patient_id.ilike(f"%{patient_id}%"))
 
     total_count = query.count()
     records = query.order_by(AuditLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
@@ -287,3 +298,53 @@ def get_audit_logs(db: Session, user: User, page: int = 1, limit: int = 50) -> d
         "limit": limit,
         "total_count": total_count,
     }
+
+
+def export_audit_logs_csv(
+    db: Session,
+    user: User,
+    action: Optional[str] = None,
+    patient_id: Optional[str] = None,
+) -> tuple[str, str]:
+    """Generates a HIPAA/GDPR compliance CSV export with cryptographic SHA-256 integrity hash."""
+    import csv
+    import hashlib
+    import io
+
+    query = db.query(AuditLog)
+    if user.role != "Admin":
+        query = query.filter(AuditLog.user_id == user.id)
+    if action:
+        query = query.filter(AuditLog.action.ilike(f"%{action}%"))
+    if patient_id:
+        query = query.filter(AuditLog.patient_id.ilike(f"%{patient_id}%"))
+
+    records = query.order_by(AuditLog.created_at.desc()).limit(1000).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "audit_id",
+        "timestamp_utc",
+        "clinician_name",
+        "clinician_role",
+        "action",
+        "patient_id",
+        "prediction_id",
+        "details",
+    ])
+    for r in records:
+        writer.writerow([
+            r.id,
+            r.created_at.isoformat() if r.created_at else "",
+            r.user_name or f"User #{r.user_id}",
+            r.user_role or "Doctor",
+            r.action,
+            r.patient_id or "",
+            r.prediction_id or "",
+            r.details or "",
+        ])
+
+    csv_data = output.getvalue()
+    checksum = hashlib.sha256(csv_data.encode("utf-8")).hexdigest()
+    return csv_data, checksum

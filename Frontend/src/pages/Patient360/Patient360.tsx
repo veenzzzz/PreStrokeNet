@@ -3,13 +3,17 @@ import {
   Award,
   Bot,
   Brain,
+  CheckCircle2,
   Clock,
+  Database,
   FileText,
   KeyRound,
   LineChart,
   PlusCircle,
   RefreshCw,
+  ShieldAlert,
   Star,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -21,7 +25,9 @@ import { RiskBadge } from "../../components/PredictionCard";
 import { SkeletonProfile, SkeletonTable } from "../../components/Skeleton";
 import { useToast } from "../../components/useToast";
 import { getApiErrorMessage } from "../../services/authService";
-import { downloadPdf } from "../../services/reportService";
+import { downloadPatientFhirBundle, downloadPdf } from "../../services/reportService";
+import type { MotorDegradationAlert } from "../../types";
+
 
 import { apiFetch } from "../../services/api";
 
@@ -129,7 +135,8 @@ export function Patient360() {
     );
   }
 
-  const { scorecard, longitudinal_forecast, risk_change_analysis, pending_followups, recent_timeline_events } = data;
+  const { scorecard, longitudinal_forecast, risk_change_analysis, pending_followups, recent_timeline_events, motor_degradation_alert } = data;
+  const motorAlert: MotorDegradationAlert | undefined = motor_degradation_alert;
   const patient = scorecard.patient;
   const card = scorecard.scorecard;
   const topAttr = scorecard.top_attributions || [];
@@ -176,8 +183,32 @@ export function Patient360() {
             <Button variant="secondary" icon={PlusCircle} onClick={() => navigate("/prediction")}>
               New Assessment
             </Button>
-            <Button variant="secondary" icon={FileText} onClick={() => void downloadPdf(1)}>
+            <Button
+              variant="secondary"
+              icon={FileText}
+              onClick={() => {
+                const latestPredId = data?.scorecard?.scorecard?.latest_prediction_id;
+                if (latestPredId) {
+                  void downloadPdf(latestPredId);
+                  notify({ type: "success", title: "Clinical report downloaded" });
+                } else {
+                  notify({ type: "info", title: "No assessment record found to generate report." });
+                }
+              }}
+            >
               Generate Report
+            </Button>
+            <Button
+              variant="secondary"
+              icon={Database}
+              onClick={() => {
+                if (patient?.patient_id) {
+                  void downloadPatientFhirBundle(patient.patient_id);
+                  notify({ type: "success", title: "Patient FHIR R4 Bundle exported" });
+                }
+              }}
+            >
+              Export FHIR R4
             </Button>
           </div>
         </div>
@@ -240,6 +271,162 @@ export function Patient360() {
               <p className="mt-1 text-[11px] italic text-muted">* Model probability output provides clinical decision support and does not constitute a diagnostic medical conclusion.</p>
             </div>
           </div>
+
+          {/* 3. SUBCLINICAL NEUROMOTOR DEGRADATION ALERT */}
+          {motorAlert && (
+            <div
+              className={`glass-panel p-6 space-y-4 border transition-all ${
+                motorAlert.is_degraded
+                  ? motorAlert.severity === "HIGH"
+                    ? "border-rose-500/50 bg-rose-500/10 shadow-lg shadow-rose-950/20"
+                    : "border-amber-500/50 bg-amber-500/10 shadow-lg shadow-amber-950/20"
+                  : "border-emerald-500/30 bg-emerald-500/5"
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  {motorAlert.is_degraded ? (
+                    <ShieldAlert
+                      className={`size-6 shrink-0 ${
+                        motorAlert.severity === "HIGH" ? "text-rose-400 animate-pulse" : "text-amber-400"
+                      }`}
+                    />
+                  ) : (
+                    <CheckCircle2 className="size-6 shrink-0 text-emerald-400" />
+                  )}
+                  <div>
+                    <span
+                      className={`text-[10px] uppercase font-bold tracking-wider block ${
+                        motorAlert.is_degraded
+                          ? motorAlert.severity === "HIGH"
+                            ? "text-rose-400"
+                            : "text-amber-400"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      Longitudinal Neuromotor Kinematics
+                    </span>
+                    <h3 className="font-display text-base font-bold text-text">
+                      {motorAlert.is_degraded
+                        ? "Subclinical Motor Degradation Alert"
+                        : motorAlert.status === "INSUFFICIENT_DATA"
+                        ? "Longitudinal Motor Trajectory Baseline"
+                        : "Preserved Fine-Motor Kinematics"}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {motorAlert.is_degraded ? (
+                    <span
+                      className={`badge px-2.5 py-1 text-xs font-bold uppercase ${
+                        motorAlert.severity === "HIGH"
+                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                          : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      }`}
+                    >
+                      {motorAlert.severity} Degradation (+{motorAlert.latency_shift_pct.toFixed(1)}%)
+                    </span>
+                  ) : (
+                    <span className="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 text-xs font-bold">
+                      {motorAlert.status === "INSUFFICIENT_DATA" ? "Baseline Pending" : "Stable Baseline"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* METRICS COMPARISON GRID */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                <div className="rounded-xl border border-line bg-white/[0.02] p-3 space-y-1">
+                  <span className="text-muted block text-[11px]">Dwell Time (H)</span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-bold text-sm text-text">
+                      {motorAlert.current_dwell_ms.toFixed(1)} ms
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold ${
+                        motorAlert.dwell_shift_pct >= 15 ? "text-rose-400" : "text-emerald-400"
+                      }`}
+                    >
+                      {motorAlert.dwell_shift_pct > 0 ? "+" : ""}
+                      {motorAlert.dwell_shift_pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted block">Base: {motorAlert.baseline_dwell_ms.toFixed(1)} ms</span>
+                </div>
+
+                <div className="rounded-xl border border-line bg-white/[0.02] p-3 space-y-1">
+                  <span className="text-muted block text-[11px]">Flight Latency (UD)</span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-bold text-sm text-text">
+                      {motorAlert.current_flight_ms.toFixed(1)} ms
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold ${
+                        motorAlert.flight_shift_pct >= 15 ? "text-rose-400" : "text-emerald-400"
+                      }`}
+                    >
+                      {motorAlert.flight_shift_pct > 0 ? "+" : ""}
+                      {motorAlert.flight_shift_pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted block">Base: {motorAlert.baseline_flight_ms.toFixed(1)} ms</span>
+                </div>
+
+                <div className="rounded-xl border border-line bg-white/[0.02] p-3 space-y-1">
+                  <span className="text-muted block text-[11px]">Digraph Latency (DD)</span>
+                  <div className="flex items-baseline justify-between">
+                    <span className="font-bold text-sm text-text">
+                      {motorAlert.current_digraph_ms.toFixed(1)} ms
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold ${
+                        motorAlert.digraph_shift_pct >= 15 ? "text-rose-400" : "text-emerald-400"
+                      }`}
+                    >
+                      {motorAlert.digraph_shift_pct > 0 ? "+" : ""}
+                      {motorAlert.digraph_shift_pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted block">Base: {motorAlert.baseline_digraph_ms.toFixed(1)} ms</span>
+                </div>
+
+                <div className="rounded-xl border border-line bg-white/[0.02] p-3 space-y-1">
+                  <span className="text-muted block text-[11px]">Sessions Tracked</span>
+                  <span className="font-bold text-base text-text block mt-1">
+                    {motorAlert.session_count} Longitudinal {motorAlert.session_count === 1 ? "Session" : "Sessions"}
+                  </span>
+                  <span className="text-[10px] text-muted block">Dual-Modality Tapping</span>
+                </div>
+              </div>
+
+              {/* CLINICAL RATIONALE */}
+              <div className="rounded-xl border border-line/60 bg-black/20 p-3.5 space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 text-text font-bold">
+                  <Zap className="size-4 text-warning" />
+                  <span>Clinical Rationale & Pathophysiology:</span>
+                </div>
+                <p className="text-muted leading-relaxed font-sans">{motorAlert.clinical_rationale}</p>
+              </div>
+
+              {/* RECOMMENDED WORKUP (IF DEGRADED) */}
+              {motorAlert.is_degraded && motorAlert.recommended_workup?.length > 0 && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3.5 space-y-2">
+                  <span className="text-xs font-bold text-rose-300 uppercase tracking-wider block">
+                    Recommended Cerebrovascular Diagnostic Workup:
+                  </span>
+                  <ul className="grid sm:grid-cols-2 gap-2 text-xs">
+                    {motorAlert.recommended_workup.map((rec: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 bg-white/[0.02] p-2 rounded-lg border border-line/40 text-text">
+                        <span className="size-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                        <span>{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 4. RISK PROGRESSION & LONGITUDINAL FORECAST */}
           {longitudinal_forecast && (

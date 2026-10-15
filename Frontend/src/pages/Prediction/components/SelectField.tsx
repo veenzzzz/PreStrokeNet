@@ -7,30 +7,43 @@ interface SelectFieldProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  meta?: ReactNode;
+  meta?: string;
   children: ReactNode;
+  hint?: string;
 }
 
-export function SelectField({ id, label, value, onChange, required = false, meta, children }: SelectFieldProps) {
+export function SelectField({ id, label, value, onChange, required = false, meta, children, hint }: SelectFieldProps) {
   return (
-    <label className="block space-y-2" htmlFor={id}>
-      <span className="flex flex-col gap-1 text-sm font-medium text-muted-strong sm:flex-row sm:items-center sm:justify-between">
-        <span>{label}</span>
-        {required || meta ? <span className="text-[11px] font-normal leading-4 text-muted sm:text-right">{required ? "Required" : meta}</span> : null}
-      </span>
-      <span className="field-shell px-3.5 relative">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-text-secondary" htmlFor={id}>
+          {label}
+          {required && (
+            <span className="ml-1 text-danger/80" aria-hidden="true">*</span>
+          )}
+        </label>
+        {meta && (
+          <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted/70">{meta}</span>
+        )}
+      </div>
+      <div className="field-shell relative" style={{ paddingInline: "0.75rem", minHeight: "2.5rem" }}>
         <select
           id={id}
-          className="min-w-0 flex-1 appearance-none bg-transparent py-3 pr-8 text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer"
+          className="min-w-0 flex-1 appearance-none bg-transparent py-2 pr-7 text-sm text-text focus:outline-none cursor-pointer"
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           required={required}
-          style={{ colorScheme: "dark" }}
         >
           {children}
         </select>
-        <ChevronDown className="absolute right-3.5 size-4 text-muted pointer-events-none" />
-      </span>
-    </label>
+        <ChevronDown
+          className="absolute right-3 size-3.5 text-muted pointer-events-none"
+          aria-hidden="true"
+        />
+      </div>
+      {hint && (
+        <p className="text-xs text-muted">{hint}</p>
+      )}
+    </div>
   );
 }

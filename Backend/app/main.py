@@ -16,6 +16,7 @@ from app.api.clinical_workflow import router as clinical_workflow_router
 from app.api.notifications import router as notifications_router
 from app.api.patient_intelligence import router as patient_intelligence_router
 from app.api.patient_monitoring import router as patient_monitoring_router
+from app.api.fhir import router as fhir_router
 from app.core.config import CORS_ORIGINS, ENVIRONMENT
 
 from app.core.database import Base, engine
@@ -23,6 +24,23 @@ import app.models
 
 try:
     Base.metadata.create_all(bind=engine)
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "users" in inspector.get_table_names():
+        user_cols = {col["name"].lower() for col in inspector.get_columns("users")}
+        cols_to_add = [
+            ("phone", "VARCHAR(50) NULL"),
+            ("medical_license", "VARCHAR(50) NULL"),
+            ("department", "VARCHAR(100) NULL"),
+            ("institution", "VARCHAR(150) NULL"),
+        ]
+        with engine.begin() as conn:
+            for col_name, col_type in cols_to_add:
+                if col_name.lower() not in user_cols:
+                    try:
+                        conn.execute(text(f"ALTER TABLE users ADD {col_name} {col_type}"))
+                    except Exception:
+                        pass
 except Exception as err:
     print(f"Database table initialization warning: {err}")
 
@@ -59,6 +77,7 @@ app.include_router(notifications_router)
 app.include_router(patient_intelligence_router)
 app.include_router(clinical_workflow_router)
 app.include_router(patient_monitoring_router)
+app.include_router(fhir_router)
 
 @app.get("/")
 def root():

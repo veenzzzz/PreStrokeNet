@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -49,6 +49,7 @@ class FinalPredictionRequest(KeystrokeFeatures):
     avg_glucose_level: float = Field(gt=0, le=1000)
     bmi: float = Field(gt=0, le=150)
     smoking_status: int = Field(ge=0, le=1)
+    keystroke_weight: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("patient_name", "patient_id", mode="before")
     @classmethod
@@ -205,6 +206,7 @@ class PredictionDetailResponse(PredictionSummary):
     explainability: Explainability
     recommendations: list[str]
     timeline: list[ActivityEvent]
+    calibration_metrics: dict[str, Any] | None = None
 
 
 class DashboardTrendItem(BaseModel):
