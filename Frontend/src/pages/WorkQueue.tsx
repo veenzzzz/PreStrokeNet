@@ -5,7 +5,7 @@ import {
   Search,
   UserCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { apiFetch } from "../services/api";
@@ -59,7 +59,7 @@ export function WorkQueue() {
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [search, setSearch] = useState("");
 
-  const loadQueue = () => {
+  const loadQueue = useCallback(() => {
     setIsLoading(true);
     setError("");
     const params = new URLSearchParams();
@@ -71,11 +71,11 @@ export function WorkQueue() {
       .then((resData) => setData(resData))
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load work queue."))
       .finally(() => setIsLoading(false));
-  };
+  }, [statusFilter, priorityFilter, search]);
 
   useEffect(() => {
     loadQueue();
-  }, [statusFilter, priorityFilter]);
+  }, [loadQueue]);
 
   if (error) {
     return (

@@ -16,7 +16,8 @@ class Phase14ResearchValidationTests(unittest.TestCase):
     def test_01_production_model_hash_integrity(self):
         """Verify production stroke_model.pkl was NOT changed or overwritten."""
         self.assertTrue(os.path.exists(MODEL_PATH), "stroke_model.pkl must exist")
-        sha256 = hashlib.sha256(open(MODEL_PATH, "rb").read()).hexdigest()
+        with open(MODEL_PATH, "rb") as f:
+            sha256 = hashlib.sha256(f.read()).hexdigest()
         self.assertEqual(sha256, "43662a6f11725dd0a84903799b38957de3b7e80d5738863c85137d838a7d9bcb")
 
     def test_02_phase14_research_artifacts_exist_and_readable(self):

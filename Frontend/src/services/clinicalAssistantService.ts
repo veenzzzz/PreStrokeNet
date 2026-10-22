@@ -56,7 +56,7 @@ export async function getAssistantHealth(): Promise<AssistantHealthResponse> {
   try {
     const response = await api.get<AssistantHealthResponse>("/clinical-assistant/health");
     return response.data;
-  } catch (error) {
+  } catch {
     return { status: "unavailable", provider: "unknown", detail: "Health endpoint unreachable" };
   }
 }

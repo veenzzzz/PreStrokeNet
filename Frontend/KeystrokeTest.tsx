@@ -1,4 +1,3 @@
-import { useState } from "react";
 
 export default function KeystrokeTest() {
   const sentence = "The quick brown fox jumps over the lazy dog.";

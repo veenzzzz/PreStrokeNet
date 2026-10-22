@@ -1,5 +1,5 @@
 import { CheckCircle2, Download, Filter, Lock, RefreshCw, Search, Shield, UserCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "../components/Button";
 import { PageHeader } from "../components/PageHeader";
@@ -35,7 +35,7 @@ export function AuditLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
 
-  const loadAuditLogs = () => {
+  const loadAuditLogs = useCallback(() => {
     setIsLoading(true);
     let url = "/audit-log?limit=100";
     if (actionFilter !== "all") {
@@ -49,11 +49,11 @@ export function AuditLog() {
       .then((resData) => setData(resData))
       .catch(() => setData(null))
       .finally(() => setIsLoading(false));
-  };
+  }, [actionFilter, searchTerm]);
 
   useEffect(() => {
     loadAuditLogs();
-  }, [actionFilter]);
+  }, [loadAuditLogs]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

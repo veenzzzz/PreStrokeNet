@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   UserCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "../components/Button";
@@ -35,7 +35,7 @@ export function Notifications() {
   const [severityFilter, setSeverityFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
 
-  const load = () => {
+  const load = useCallback(() => {
     setIsLoading(true);
     setError("");
     getNotifications({ unread_only: tab === "unread" })
@@ -46,11 +46,11 @@ export function Notifications() {
       })
       .catch((err) => setError(getApiErrorMessage(err, "Unable to load notifications.")))
       .finally(() => setIsLoading(false));
-  };
+  }, [tab]);
 
   useEffect(() => {
     load();
-  }, [tab]);
+  }, [load]);
 
   const handleMarkRead = async (id: number) => {
     try {
