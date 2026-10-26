@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   BarChart3,
   Bot,
-  CheckCircle2,
   Clock,
   ExternalLink,
   RefreshCw,
