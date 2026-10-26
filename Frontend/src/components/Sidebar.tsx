@@ -31,7 +31,7 @@ interface NavSection {
 
 const navSections: NavSection[] = [
   {
-    category: "WORKSPACE",
+    category: "Workspace",
     items: [
       { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
       { label: "Stroke Prediction", to: "/prediction", icon: Activity },
@@ -40,20 +40,20 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    category: "ANALYTICS",
+    category: "Analytics",
     items: [
       { label: "Model Analytics", to: "/model-analytics", icon: BarChart3 },
       { label: "Patient Comparison", to: "/patient-comparison", icon: Users },
     ],
   },
   {
-    category: "INTELLIGENCE",
+    category: "Intelligence",
     items: [
       { label: "AI Assistant", to: "/clinical-assistant", icon: Bot },
     ],
   },
   {
-    category: "SYSTEM",
+    category: "System",
     items: [
       { label: "Audit Log", to: "/audit-log", icon: Shield },
       { label: "Demo Mode", to: "/demo", icon: Sparkles },
@@ -138,8 +138,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           {navSections.map((section) => (
             <div key={section.category}>
               <p
-                className="mb-1.5 px-3 text-[10px] font-700 uppercase tracking-[0.14em]"
-                style={{ color: "var(--muted)", fontWeight: 700 }}
+                className="mb-1 px-3 text-[10px] font-semibold tracking-[0.06em] uppercase"
+                style={{ color: "var(--muted)", opacity: 0.75 }}
               >
                 {section.category}
               </p>

@@ -37,7 +37,7 @@ interface TeamMember {
 /* ── Settings ────────────────────────────────────────────────────────────── */
 export function Settings() {
   const { notify } = useToast();
-  const [isLight, setIsLight] = useState(() => document.documentElement.classList.contains("light"));
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const [notifications, setNotifications] = useState({ reports: true, product: true, weekly: false });
   const [password, setPassword] = useState({ current: "", next: "", confirm: "" });
   const [saved, setSaved] = useState(false);
@@ -51,9 +51,13 @@ export function Settings() {
   const [newMemberRole, setNewMemberRole] = useState<"Doctor" | "Admin" | "Auditor">("Doctor");
 
   useEffect(() => {
-    document.documentElement.classList.toggle("light", isLight);
-    localStorage.setItem("prestrokenet-theme", isLight ? "light" : "dark");
-  }, [isLight]);
+    document.documentElement.classList.toggle("dark", isDark);
+    if (isDark) {
+      localStorage.setItem("prestrokenet-theme", "dark");
+    } else {
+      localStorage.removeItem("prestrokenet-theme");
+    }
+  }, [isDark]);
 
   const handlePasswordSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -115,22 +119,22 @@ export function Settings() {
 
           <div className="flex gap-3">
             {[
-              { label: "Dark mode", value: false, Icon: Moon },
-              { label: "Light mode", value: true, Icon: Sun },
+              { label: "Light (default)", value: false, Icon: Sun },
+              { label: "Dark mode", value: true, Icon: Moon },
             ].map(({ label, value, Icon }) => (
               <button
                 key={label}
                 type="button"
-                onClick={() => setIsLight(value)}
+                onClick={() => setIsDark(value)}
                 className="flex items-center gap-2.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all"
                 style={{
-                  borderColor: isLight === value
+                  borderColor: isDark === value
                     ? "color-mix(in srgb, var(--primary) 50%, transparent)"
                     : "var(--line)",
-                  background: isLight === value ? "var(--primary-dim)" : "transparent",
-                  color: isLight === value ? "var(--primary)" : "var(--muted)",
+                  background: isDark === value ? "var(--primary-dim)" : "transparent",
+                  color: isDark === value ? "var(--primary)" : "var(--muted)",
                 }}
-                aria-pressed={isLight === value}
+                aria-pressed={isDark === value}
               >
                 <Icon className="size-4" aria-hidden="true" />
                 {label}
