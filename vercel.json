@@ -1,9 +1,10 @@
 {
-  "buildCommand": "npm --prefix Frontend ci && npm --prefix Frontend run build",
+  "installCommand": "npm --prefix Frontend ci",
+  "buildCommand": "npm --prefix Frontend run build",
   "outputDirectory": "Frontend/dist",
-  "installCommand": "echo 'deps handled in buildCommand'",
   "framework": null,
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
+
